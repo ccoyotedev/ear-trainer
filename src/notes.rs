@@ -1,5 +1,7 @@
+use rodio::{OutputStream, Sink, Source};
 use std::fmt;
 use std::str::FromStr;
+use std::time::Duration;
 
 #[derive(Debug, PartialEq)]
 pub enum Note {
@@ -101,6 +103,121 @@ impl NoteWithOctave {
     pub fn frequency(&self) -> f64 {
         self.note.to_frequency(self.octave)
     }
+
+    /// Play the note as audio for the specified duration
+    pub fn play(&self, duration: Duration) -> Result<(), Box<dyn std::error::Error>> {
+        let frequency = self.frequency() as f32;
+        play_frequency(frequency, duration)
+    }
+
+    /// Play the note as audio for 1 second (convenience method)
+    pub fn play_default(&self) -> Result<(), Box<dyn std::error::Error>> {
+        self.play(Duration::from_secs(1))
+    }
+}
+
+/// Generate a sine wave source at the specified frequency
+struct SineWave {
+    frequency: f32,
+    sample_rate: u32,
+    sample_index: usize,
+}
+
+impl SineWave {
+    fn new(frequency: f32) -> Self {
+        Self {
+            frequency,
+            sample_rate: 44100,
+            sample_index: 0,
+        }
+    }
+}
+
+impl Iterator for SineWave {
+    type Item = f32;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let sample = (self.sample_index as f32 * self.frequency * 2.0 * std::f32::consts::PI
+            / self.sample_rate as f32)
+            .sin();
+        self.sample_index = self.sample_index.wrapping_add(1);
+        Some(sample * 0.3) // Reduce volume to 30%
+    }
+}
+
+impl Source for SineWave {
+    fn current_frame_len(&self) -> Option<usize> {
+        None
+    }
+
+    fn channels(&self) -> u16 {
+        1
+    }
+
+    fn sample_rate(&self) -> u32 {
+        self.sample_rate
+    }
+
+    fn total_duration(&self) -> Option<Duration> {
+        None
+    }
+}
+
+/// Play a frequency for the specified duration
+pub fn play_frequency(
+    frequency: f32,
+    duration: Duration,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // Create output stream
+    let (_stream, stream_handle) = OutputStream::try_default()?;
+    let sink = Sink::try_new(&stream_handle)?;
+
+    // Create sine wave source
+    let source = SineWave::new(frequency).take_duration(duration);
+
+    // Play the sound
+    sink.append(source);
+    sink.sleep_until_end();
+
+    Ok(())
+}
+
+/// Play a chord (multiple notes simultaneously) as an arpeggio
+pub fn play_chord(
+    notes: &[NoteWithOctave],
+    duration: Duration,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let (_stream, stream_handle) = OutputStream::try_default()?;
+    let sink = Sink::try_new(&stream_handle)?;
+
+    // Play notes in quick succession (arpeggio style)
+    let note_duration = Duration::from_millis(duration.as_millis() as u64 / notes.len() as u64);
+
+    for note in notes {
+        let source = SineWave::new(note.frequency() as f32).take_duration(note_duration);
+        sink.append(source);
+    }
+
+    sink.sleep_until_end();
+    Ok(())
+}
+
+/// Create a C major chord
+pub fn c_major_chord() -> [NoteWithOctave; 3] {
+    [
+        NoteWithOctave {
+            note: Note::C,
+            octave: 4,
+        },
+        NoteWithOctave {
+            note: Note::E,
+            octave: 4,
+        },
+        NoteWithOctave {
+            note: Note::G,
+            octave: 4,
+        },
+    ]
 }
 
 impl Note {
