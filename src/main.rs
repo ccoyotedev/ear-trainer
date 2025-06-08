@@ -1,4 +1,4 @@
-use ear_trainer::{Note, NoteWithOctave};
+use ear_trainer::notes::{Note, NoteWithOctave};
 
 fn main() {
     println!("🎵 Music Note Frequency Calculator 🎵");
