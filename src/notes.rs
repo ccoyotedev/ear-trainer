@@ -1,5 +1,5 @@
 use std::fmt;
-
+use std::str::FromStr;
 
 #[derive(Debug, PartialEq)]
 pub enum Note {
@@ -35,6 +35,52 @@ impl fmt::Display for Note {
 impl fmt::Display for NoteWithOctave {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}{}", self.note, self.octave)
+    }
+}
+
+impl FromStr for Note {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut chars = s.chars();
+        let note_str = chars.next().ok_or("Empty note string")?;
+        let second_char = chars.next();
+        let is_sharp = second_char == Some('#');
+        let is_flat = second_char == Some('b');
+        
+        let note = match (note_str, is_sharp, is_flat) {
+            ('C', false, false) => Note::C,
+            ('C', true, false) => Note::CSharp,
+            ('D', false, true) => Note::CSharp,
+            ('D', false, false) => Note::D,
+            ('D', true, false) => Note::DSharp,
+            ('E', false, true) => Note::DSharp,
+            ('E', false, false) => Note::E,
+            ('F', false, false) => Note::F,
+            ('F', true, false) => Note::FSharp,
+            ('G', false, true) => Note::FSharp,
+            ('G', false, false) => Note::G,
+            ('G', true, false) => Note::GSharp,
+            ('A', false, true) => Note::GSharp,
+            ('A', false, false) => Note::A,
+            ('A', true, false) => Note::ASharp,
+            ('B', false, true) => Note::ASharp,
+            ('B', false, false) => Note::B,
+            _ => return Err(format!("Invalid note: {}", s)),
+        };
+        Ok(note)
+    }
+}
+
+impl FromStr for NoteWithOctave {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let note = s.parse::<Note>()?;
+        let octave = if s.len() > 1 && s.chars().last().unwrap().is_ascii_digit() {
+            s[s.len()-1..].parse::<u8>().map_err(|e| e.to_string())?
+        } else {
+            4
+        };
+        Ok(NoteWithOctave { note, octave })
     }
 }
 
@@ -226,5 +272,47 @@ mod tests {
   fn test_note_with_octave_convenience() {
       let note = NoteWithOctave { note: Note::A, octave: 4 };
       assert!((note.frequency() - 440.0).abs() < 0.01);
+  }
+
+  #[test]
+  fn test_note_with_octave_from_str() {
+      let note = NoteWithOctave::from_str("A5").unwrap();
+      assert_eq!(note.note, Note::A);
+      assert_eq!(note.octave, 5);
+  }
+
+  #[test]
+  fn test_note_with_octave_from_str_with_sharp() {
+      let note = NoteWithOctave::from_str("A#2").unwrap();
+      assert_eq!(note.note, Note::ASharp);
+      assert_eq!(note.octave, 2);
+  }
+
+  #[test]
+  fn test_note_with_octave_from_str_with_flat() {
+      let note = NoteWithOctave::from_str("Bb3").unwrap();
+      assert_eq!(note.note, Note::ASharp);
+      assert_eq!(note.octave, 3);
+  }
+
+  #[test]
+  fn test_note_with_no_octave_from_str() {
+      let note = NoteWithOctave::from_str("C").unwrap();
+      assert_eq!(note.note, Note::C);
+      assert_eq!(note.octave, 4);
+  }
+
+  #[test]
+  fn test_note_with_no_octave_from_str_with_sharp() {
+      let note = NoteWithOctave::from_str("C#").unwrap();
+      assert_eq!(note.note, Note::CSharp);
+      assert_eq!(note.octave, 4);
+  }
+
+  #[test]
+  fn test_note_with_no_octave_from_str_with_flat() {
+      let note = NoteWithOctave::from_str("Db").unwrap();
+      assert_eq!(note.note, Note::CSharp);
+      assert_eq!(note.octave, 4);
   }
 }
