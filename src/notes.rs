@@ -52,53 +52,32 @@ impl fmt::Display for NoteWithOctave {
 impl FromStr for Note {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut chars = s.chars();
-        let note_str = chars.next().ok_or("Empty note string")?;
-        let second_char = chars.next();
-        if second_char.is_some() {
-            if second_char.unwrap() != '#' && second_char.unwrap() != 'b' {
-                return Err(format!("Invalid note: {}", s));
-            }
+        match s {
+            // Natural notes
+            "C" => Ok(Note::C),
+            "D" => Ok(Note::D),
+            "E" => Ok(Note::E),
+            "F" => Ok(Note::F),
+            "G" => Ok(Note::G),
+            "A" => Ok(Note::A),
+            "B" => Ok(Note::B),
+
+            // Sharp notes
+            "C#" => Ok(Note::CSharp),
+            "D#" => Ok(Note::DSharp),
+            "F#" => Ok(Note::FSharp),
+            "G#" => Ok(Note::GSharp),
+            "A#" => Ok(Note::ASharp),
+
+            // Flat notes (enharmonic equivalents)
+            "Db" => Ok(Note::CSharp),
+            "Eb" => Ok(Note::DSharp),
+            "Gb" => Ok(Note::FSharp),
+            "Ab" => Ok(Note::GSharp),
+            "Bb" => Ok(Note::ASharp),
+
+            _ => Err(format!("Invalid note: {}", s)),
         }
-        let note = match note_str {
-            'C' => match second_char {
-                Some('#') => Ok(Note::CSharp),
-                Some('b') => Err(format!("Invalid note: {}", s)),
-                _ => Ok(Note::C),
-            },
-            'D' => match second_char {
-                Some('#') => Ok(Note::DSharp),
-                Some('b') => Ok(Note::CSharp),
-                _ => Ok(Note::D),
-            },
-            'E' => match second_char {
-                Some('b') => Ok(Note::DSharp),
-                Some('#') => Err(format!("Invalid note: {}", s)),
-                _ => Ok(Note::E),
-            },
-            'F' => match second_char {
-                Some('#') => Ok(Note::FSharp),
-                Some('b') => Err(format!("Invalid note: {}", s)),
-                _ => Ok(Note::F),
-            },
-            'G' => match second_char {
-                Some('#') => Ok(Note::GSharp),
-                Some('b') => Ok(Note::FSharp),
-                _ => Ok(Note::G),
-            },
-            'A' => match second_char {
-                Some('#') => Ok(Note::ASharp),
-                Some('b') => Ok(Note::GSharp),
-                _ => Ok(Note::A),
-            },
-            'B' => match second_char {
-                Some('b') => Ok(Note::ASharp),
-                Some('#') => Err(format!("Invalid note: {}", s)),
-                _ => Ok(Note::B),
-            },
-            _ => return Err(format!("Invalid note: {}", s)),
-        };
-        note
     }
 }
 
@@ -380,5 +359,6 @@ mod tests {
         assert!(NoteWithOctave::from_str("foo").is_err());
         assert!(NoteWithOctave::from_str("Dl").is_err());
         assert!(NoteWithOctave::from_str("Gfoobar2").is_err());
+        assert!(NoteWithOctave::from_str("2").is_err());
     }
 }
