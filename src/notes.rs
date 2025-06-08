@@ -3,7 +3,18 @@ use std::str::FromStr;
 
 #[derive(Debug, PartialEq)]
 pub enum Note {
-    C, CSharp, D, DSharp, E, F, FSharp, G, GSharp, A, ASharp, B
+    C,
+    CSharp,
+    D,
+    DSharp,
+    E,
+    F,
+    FSharp,
+    G,
+    GSharp,
+    A,
+    ASharp,
+    B,
 }
 
 #[derive(Debug, PartialEq)]
@@ -44,42 +55,64 @@ impl FromStr for Note {
         let mut chars = s.chars();
         let note_str = chars.next().ok_or("Empty note string")?;
         let second_char = chars.next();
-        let is_sharp = second_char == Some('#');
-        let is_flat = second_char == Some('b');
-        
-        let note = match (note_str, is_sharp, is_flat) {
-            ('C', false, false) => Note::C,
-            ('C', true, false) => Note::CSharp,
-            ('D', false, true) => Note::CSharp,
-            ('D', false, false) => Note::D,
-            ('D', true, false) => Note::DSharp,
-            ('E', false, true) => Note::DSharp,
-            ('E', false, false) => Note::E,
-            ('F', false, false) => Note::F,
-            ('F', true, false) => Note::FSharp,
-            ('G', false, true) => Note::FSharp,
-            ('G', false, false) => Note::G,
-            ('G', true, false) => Note::GSharp,
-            ('A', false, true) => Note::GSharp,
-            ('A', false, false) => Note::A,
-            ('A', true, false) => Note::ASharp,
-            ('B', false, true) => Note::ASharp,
-            ('B', false, false) => Note::B,
+        if second_char.is_some() {
+            if second_char.unwrap() != '#' && second_char.unwrap() != 'b' {
+                return Err(format!("Invalid note: {}", s));
+            }
+        }
+        let note = match note_str {
+            'C' => match second_char {
+                Some('#') => Ok(Note::CSharp),
+                Some('b') => Err(format!("Invalid note: {}", s)),
+                _ => Ok(Note::C),
+            },
+            'D' => match second_char {
+                Some('#') => Ok(Note::DSharp),
+                Some('b') => Ok(Note::CSharp),
+                _ => Ok(Note::D),
+            },
+            'E' => match second_char {
+                Some('b') => Ok(Note::DSharp),
+                Some('#') => Err(format!("Invalid note: {}", s)),
+                _ => Ok(Note::E),
+            },
+            'F' => match second_char {
+                Some('#') => Ok(Note::FSharp),
+                Some('b') => Err(format!("Invalid note: {}", s)),
+                _ => Ok(Note::F),
+            },
+            'G' => match second_char {
+                Some('#') => Ok(Note::GSharp),
+                Some('b') => Ok(Note::FSharp),
+                _ => Ok(Note::G),
+            },
+            'A' => match second_char {
+                Some('#') => Ok(Note::ASharp),
+                Some('b') => Ok(Note::GSharp),
+                _ => Ok(Note::A),
+            },
+            'B' => match second_char {
+                Some('b') => Ok(Note::ASharp),
+                Some('#') => Err(format!("Invalid note: {}", s)),
+                _ => Ok(Note::B),
+            },
             _ => return Err(format!("Invalid note: {}", s)),
         };
-        Ok(note)
+        note
     }
 }
 
 impl FromStr for NoteWithOctave {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let note = s.parse::<Note>()?;
-        let octave = if s.len() > 1 && s.chars().last().unwrap().is_ascii_digit() {
-            s[s.len()-1..].parse::<u8>().map_err(|e| e.to_string())?
-        } else {
-            4
+        let (note_str, octave_str) = match s.find(|c: char| c.is_ascii_digit()) {
+            Some(pos) => (&s[..pos], &s[pos..]),
+            None => (s, "4"),
         };
+
+        let note = note_str.parse::<Note>()?;
+        let octave = octave_str.parse::<u8>().map_err(|e| e.to_string())?;
+
         Ok(NoteWithOctave { note, octave })
     }
 }
@@ -110,15 +143,18 @@ impl Note {
 
         // Calculate octave (A4 is octave 4)
         let octave = 4 + (rounded_semitones / 12);
-        
+
         // Handle negative octaves or very high octaves
         if octave < 0 || octave > 10 {
-            return Err(format!("Octave {} is out of reasonable range (0-10)", octave));
+            return Err(format!(
+                "Octave {} is out of reasonable range (0-10)",
+                octave
+            ));
         }
 
         // Calculate note within octave
         let note_index = ((rounded_semitones % 12) + 12) % 12; // Ensure positive
-        
+
         let note = match note_index {
             0 => Note::A,
             1 => Note::ASharp,
@@ -147,7 +183,7 @@ impl Note {
         // Semitones from A within the same octave
         // Note: C, D, E, F, G come BEFORE A in the same octave number
         let note_offset = match self {
-            Note::C => -9,      // C is 9 semitones below A
+            Note::C => -9, // C is 9 semitones below A
             Note::CSharp => -8,
             Note::D => -7,
             Note::DSharp => -6,
@@ -156,163 +192,193 @@ impl Note {
             Note::FSharp => -3,
             Note::G => -2,
             Note::GSharp => -1,
-            Note::A => 0,       // Our reference point
+            Note::A => 0, // Our reference point
             Note::ASharp => 1,
             Note::B => 2,
         };
 
         // Calculate octave difference from octave 4
         let octave_offset = (octave as i32 - 4) * 12;
-        
+
         // Total semitones = octave difference + note offset
         octave_offset + note_offset
     }
-
 }
 
 #[cfg(test)]
 mod tests {
-  use super::*;
+    use super::*;
 
-  #[test]
-  fn test_a4_is_440hz() {
-      let a4_freq = Note::A.to_frequency(4);
-      assert!((a4_freq - 440.0).abs() < 0.01, "A4 should be 440Hz, got {}", a4_freq);
-  }
+    #[test]
+    fn test_a4_is_440hz() {
+        let a4_freq = Note::A.to_frequency(4);
+        assert!(
+            (a4_freq - 440.0).abs() < 0.01,
+            "A4 should be 440Hz, got {}",
+            a4_freq
+        );
+    }
 
-  #[test]
-  fn test_c4_frequency() {
-      let c4_freq = Note::C.to_frequency(4);
-      // C4 should be approximately 261.63Hz
-      assert!((c4_freq - 261.63).abs() < 0.01, "C4 should be ~261.63Hz, got {}", c4_freq);
-  }
+    #[test]
+    fn test_c4_frequency() {
+        let c4_freq = Note::C.to_frequency(4);
+        // C4 should be approximately 261.63Hz
+        assert!(
+            (c4_freq - 261.63).abs() < 0.01,
+            "C4 should be ~261.63Hz, got {}",
+            c4_freq
+        );
+    }
 
-  #[test]
-  fn test_octave_doubling() {
-      let a4_freq = Note::A.to_frequency(4);
-      let a5_freq = Note::A.to_frequency(5);
-      
-      // A5 should be exactly double A4
-      assert!((a5_freq - a4_freq * 2.0).abs() < 0.01, 
-          "A5 ({}) should be double A4 ({})", a5_freq, a4_freq);
-  }
+    #[test]
+    fn test_octave_doubling() {
+        let a4_freq = Note::A.to_frequency(4);
+        let a5_freq = Note::A.to_frequency(5);
 
-  #[test]
-  fn test_semitone_relationship() {
-      let c4_freq = Note::C.to_frequency(4);
-      let c_sharp4_freq = Note::CSharp.to_frequency(4);
-      
-      // Each semitone should multiply frequency by 2^(1/12) ≈ 1.0595
-      let expected_ratio = 2.0_f64.powf(1.0/12.0);
-      let actual_ratio = c_sharp4_freq / c4_freq;
-      
-      assert!((actual_ratio - expected_ratio).abs() < 0.001,
-          "Semitone ratio should be ~1.0595, got {}", actual_ratio);
-  }
+        // A5 should be exactly double A4
+        assert!(
+            (a5_freq - a4_freq * 2.0).abs() < 0.01,
+            "A5 ({}) should be double A4 ({})",
+            a5_freq,
+            a4_freq
+        );
+    }
 
-  #[test]
-  fn test_frequency_to_note_a4() {
-      let note = Note::from_frequency(440.0).unwrap();
-      assert_eq!(note.note, Note::A);
-      assert_eq!(note.octave, 4);
-  }
+    #[test]
+    fn test_semitone_relationship() {
+        let c4_freq = Note::C.to_frequency(4);
+        let c_sharp4_freq = Note::CSharp.to_frequency(4);
 
-  #[test]
-  fn test_frequency_to_note_c4() {
-      let c4_freq = Note::C.to_frequency(4);
-      let note = Note::from_frequency(c4_freq).unwrap();
-      assert_eq!(note.note, Note::C);
-      assert_eq!(note.octave, 4);
-  }
+        // Each semitone should multiply frequency by 2^(1/12) ≈ 1.0595
+        let expected_ratio = 2.0_f64.powf(1.0 / 12.0);
+        let actual_ratio = c_sharp4_freq / c4_freq;
 
-  #[test]
-  fn test_round_trip_conversion() {
-      // Test that converting note->frequency->note gives us back the original
-      let original_notes = vec![
-          (Note::C, 4),
-          (Note::FSharp, 3),
-          (Note::A, 4),
-          (Note::B, 5),
-      ];
+        assert!(
+            (actual_ratio - expected_ratio).abs() < 0.001,
+            "Semitone ratio should be ~1.0595, got {}",
+            actual_ratio
+        );
+    }
 
-      for (note, octave) in original_notes {
-          let freq = note.to_frequency(octave);
-          let converted = Note::from_frequency(freq).unwrap();
-          
-          assert_eq!(converted.note, note, 
-              "Round trip failed for {:?}{}", note, octave);
-          assert_eq!(converted.octave, octave,
-              "Octave mismatch for {:?}{}", note, octave);
-      }
-  }
+    #[test]
+    fn test_frequency_to_note_a4() {
+        let note = Note::from_frequency(440.0).unwrap();
+        assert_eq!(note.note, Note::A);
+        assert_eq!(note.octave, 4);
+    }
 
-  #[test]
-  fn test_frequency_error_handling() {
-      // Test negative frequency
-      assert!(Note::from_frequency(-1.0).is_err());
-      
-      // Test zero frequency
-      assert!(Note::from_frequency(0.0).is_err());
-      
-      // Test extremely high frequency (should be out of range)
-      assert!(Note::from_frequency(100000.0).is_err());
-  }
+    #[test]
+    fn test_frequency_to_note_c4() {
+        let c4_freq = Note::C.to_frequency(4);
+        let note = Note::from_frequency(c4_freq).unwrap();
+        assert_eq!(note.note, Note::C);
+        assert_eq!(note.octave, 4);
+    }
 
-  #[test]
-  fn test_display_formatting() {
-      assert_eq!(format!("{}", Note::C), "C");
-      assert_eq!(format!("{}", Note::CSharp), "C#");
-      assert_eq!(format!("{}", Note::FSharp), "F#");
-      
-      let note_with_octave = NoteWithOctave { note: Note::A, octave: 4 };
-      assert_eq!(format!("{}", note_with_octave), "A4");
-  }
+    #[test]
+    fn test_round_trip_conversion() {
+        // Test that converting note->frequency->note gives us back the original
+        let original_notes = vec![(Note::C, 4), (Note::FSharp, 3), (Note::A, 4), (Note::B, 5)];
 
-  #[test]
-  fn test_note_with_octave_convenience() {
-      let note = NoteWithOctave { note: Note::A, octave: 4 };
-      assert!((note.frequency() - 440.0).abs() < 0.01);
-  }
+        for (note, octave) in original_notes {
+            let freq = note.to_frequency(octave);
+            let converted = Note::from_frequency(freq).unwrap();
 
-  #[test]
-  fn test_note_with_octave_from_str() {
-      let note = NoteWithOctave::from_str("A5").unwrap();
-      assert_eq!(note.note, Note::A);
-      assert_eq!(note.octave, 5);
-  }
+            assert_eq!(
+                converted.note, note,
+                "Round trip failed for {:?}{}",
+                note, octave
+            );
+            assert_eq!(
+                converted.octave, octave,
+                "Octave mismatch for {:?}{}",
+                note, octave
+            );
+        }
+    }
 
-  #[test]
-  fn test_note_with_octave_from_str_with_sharp() {
-      let note = NoteWithOctave::from_str("A#2").unwrap();
-      assert_eq!(note.note, Note::ASharp);
-      assert_eq!(note.octave, 2);
-  }
+    #[test]
+    fn test_frequency_error_handling() {
+        // Test negative frequency
+        assert!(Note::from_frequency(-1.0).is_err());
 
-  #[test]
-  fn test_note_with_octave_from_str_with_flat() {
-      let note = NoteWithOctave::from_str("Bb3").unwrap();
-      assert_eq!(note.note, Note::ASharp);
-      assert_eq!(note.octave, 3);
-  }
+        // Test zero frequency
+        assert!(Note::from_frequency(0.0).is_err());
 
-  #[test]
-  fn test_note_with_no_octave_from_str() {
-      let note = NoteWithOctave::from_str("C").unwrap();
-      assert_eq!(note.note, Note::C);
-      assert_eq!(note.octave, 4);
-  }
+        // Test extremely high frequency (should be out of range)
+        assert!(Note::from_frequency(100000.0).is_err());
+    }
 
-  #[test]
-  fn test_note_with_no_octave_from_str_with_sharp() {
-      let note = NoteWithOctave::from_str("C#").unwrap();
-      assert_eq!(note.note, Note::CSharp);
-      assert_eq!(note.octave, 4);
-  }
+    #[test]
+    fn test_display_formatting() {
+        assert_eq!(format!("{}", Note::C), "C");
+        assert_eq!(format!("{}", Note::CSharp), "C#");
+        assert_eq!(format!("{}", Note::FSharp), "F#");
 
-  #[test]
-  fn test_note_with_no_octave_from_str_with_flat() {
-      let note = NoteWithOctave::from_str("Db").unwrap();
-      assert_eq!(note.note, Note::CSharp);
-      assert_eq!(note.octave, 4);
-  }
+        let note_with_octave = NoteWithOctave {
+            note: Note::A,
+            octave: 4,
+        };
+        assert_eq!(format!("{}", note_with_octave), "A4");
+    }
+
+    #[test]
+    fn test_note_with_octave_convenience() {
+        let note = NoteWithOctave {
+            note: Note::A,
+            octave: 4,
+        };
+        assert!((note.frequency() - 440.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_note_with_octave_from_str() {
+        let note = NoteWithOctave::from_str("A5").unwrap();
+        assert_eq!(note.note, Note::A);
+        assert_eq!(note.octave, 5);
+    }
+
+    #[test]
+    fn test_note_with_octave_from_str_with_sharp() {
+        let note = NoteWithOctave::from_str("A#2").unwrap();
+        assert_eq!(note.note, Note::ASharp);
+        assert_eq!(note.octave, 2);
+    }
+
+    #[test]
+    fn test_note_with_octave_from_str_with_flat() {
+        let note = NoteWithOctave::from_str("Bb3").unwrap();
+        assert_eq!(note.note, Note::ASharp);
+        assert_eq!(note.octave, 3);
+    }
+
+    #[test]
+    fn test_note_with_octave_from_str_no_octave() {
+        let note = NoteWithOctave::from_str("C").unwrap();
+        assert_eq!(note.note, Note::C);
+        assert_eq!(note.octave, 4);
+    }
+
+    #[test]
+    fn test_note_with_octave_from_str_no_octave_with_sharp() {
+        let note = NoteWithOctave::from_str("C#").unwrap();
+        assert_eq!(note.note, Note::CSharp);
+        assert_eq!(note.octave, 4);
+    }
+
+    #[test]
+    fn test_note_with_octave_from_str_no_octave_with_flat() {
+        let note = NoteWithOctave::from_str("Db").unwrap();
+        assert_eq!(note.note, Note::CSharp);
+        assert_eq!(note.octave, 4);
+    }
+
+    #[test]
+    fn test_note_with_octave_from_str_invalid() {
+        assert!(NoteWithOctave::from_str("Cb").is_err());
+        assert!(NoteWithOctave::from_str("B#").is_err());
+        assert!(NoteWithOctave::from_str("foo").is_err());
+        assert!(NoteWithOctave::from_str("Dl").is_err());
+        assert!(NoteWithOctave::from_str("Gfoobar2").is_err());
+    }
 }
