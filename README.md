@@ -73,19 +73,6 @@ note.play(Duration::from_secs(1))?;
 let note = Note::from_frequency(440.0)?; // Returns A4
 ```
 
-### Audio Features
-
-```rust
-use ear_trainer::notes::{play_frequency, play_chord, c_major_chord};
-
-// Play raw frequency
-play_frequency(440.0, Duration::from_secs(1))?;
-
-// Play a chord (as arpeggio)
-let chord = c_major_chord(); // [C4, E4, G4]
-play_chord(&chord, Duration::from_secs(2))?;
-```
-
 ## 🦀 Rust Concepts Demonstrated
 
 This project showcases many important Rust concepts:

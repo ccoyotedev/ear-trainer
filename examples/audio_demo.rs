@@ -1,4 +1,4 @@
-use ear_trainer::notes::{NoteWithOctave, c_major_chord, play_chord, play_frequency};
+use ear_trainer::notes::{Note, NoteWithOctave, Scale, ScaleType, play_frequency};
 use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -26,24 +26,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!();
 
-    // Demo 3: Chord (arpeggio)
-    println!("🎼 Playing C major chord (arpeggio):");
-    let chord = c_major_chord();
-    for note in &chord {
-        println!("  {}", note);
-    }
-    play_chord(&chord, Duration::from_secs(2))?;
-
+    // Demo 3: Scale
+    println!("🎵 Playing C major scale:");
+    let scale = Scale::new(
+        NoteWithOctave {
+            note: Note::C,
+            octave: 4,
+        },
+        ScaleType::Major,
+    );
+    scale.play_default()?;
     println!();
 
-    // Demo 4: Scale
-    println!("🎵 Playing C major scale:");
-    let scale = ["C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"];
-    for note_str in &scale {
-        let note: NoteWithOctave = note_str.parse()?;
-        print!("{} ", note);
-        note.play(Duration::from_millis(400))?;
-    }
+    println!("🎵 Playing F# major scale:");
+    let scale = Scale::new(
+        NoteWithOctave {
+            note: Note::FSharp,
+            octave: 4,
+        },
+        ScaleType::Major,
+    );
+    scale.play_default()?;
     println!();
 
     println!("\n✨ Audio demo complete!");
