@@ -1,62 +1,102 @@
-use ear_trainer::notes::NoteWithOctave;
+use ear_trainer::notes::{NoteWithOctave, Scale, ScaleType};
 use std::io;
-use std::time::Duration;
 
 fn main() {
     println!("🎵 Music Note Frequency Calculator 🎵");
     println!("=====================================\n");
 
-    // Quick audio demo
-    println!("🎼 Would you like to hear a C major scale demo? (y/n):");
-    let mut demo_input = String::new();
-    io::stdin()
-        .read_line(&mut demo_input)
-        .expect("Failed to read line");
-
-    if demo_input.trim().to_lowercase() == "y" {
-        println!("🎶 Playing C major scale...\n");
-        let scale = ["C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"];
-
-        for note_str in &scale {
-            if let Ok(note) = note_str.parse::<NoteWithOctave>() {
-                println!("🎵 Playing {} ({:.1} Hz)", note, note.frequency());
-                if let Err(e) = note.play(Duration::from_millis(500)) {
-                    println!("❌ Error playing {}: {}", note, e);
-                }
-            }
-        }
-        println!("✨ Demo complete!\n");
-    }
-
-    // Interactive mode
-    println!("🎹 Interactive Mode:");
-
     loop {
-        println!("\n🎵 Enter a note (e.g. C4, A#3, Bb2) or 'q' to quit:");
+        println!("Play a note or a scale? [n/s]");
+
         let mut input = String::new();
         io::stdin()
             .read_line(&mut input)
             .expect("Failed to read line");
         let input = input.trim();
 
-        if input == "q" {
-            println!("👋 Goodbye!");
+        if input == "n" {
+            handle_note_path();
             break;
         }
 
-        let note = match input.parse::<NoteWithOctave>() {
-            Ok(note) => note,
-            Err(_) => {
-                println!("❌ Invalid input. Please enter a valid note (e.g. C4, A#3, Bb2).");
-                continue;
+        if input == "s" {
+            handle_scale_path();
+            break;
+        }
+    }
+
+    fn handle_note_path() {
+        loop {
+            println!("\n🎵 Enter a note (e.g. C4, A#3, Bb2) or 'q' to quit:");
+            let mut input = String::new();
+            io::stdin()
+                .read_line(&mut input)
+                .expect("Failed to read line");
+            let input = input.trim();
+
+            if input == "q" {
+                println!("👋 Goodbye!");
+                break;
             }
-        };
 
-        println!("📊 {} = {:.2} Hz", note, note.frequency());
+            let note = match input.parse::<NoteWithOctave>() {
+                Ok(note) => note,
+                Err(_) => {
+                    println!("❌ Invalid input. Please enter a valid note (e.g. C4, A#3, Bb2).");
+                    continue;
+                }
+            };
 
-        match note.play_default() {
-            Ok(_) => println!("🎶 Playing {}...", note),
-            Err(e) => println!("❌ Error playing {}: {}", note, e),
+            println!("📊 {} = {:.2} Hz", note, note.frequency());
+
+            match note.play_default() {
+                Ok(_) => println!("🎶 Playing {}...", note),
+                Err(e) => println!("❌ Error playing {}: {}", note, e),
+            }
+        }
+    }
+
+    fn handle_scale_path() {
+        loop {
+            println!("\n🎵 Enter a scale (e.g. C major, A minor, F# major):");
+            let mut input = String::new();
+            io::stdin()
+                .read_line(&mut input)
+                .expect("Failed to read line");
+            let (note, scale_type) = match input.split_once(" ") {
+                Some((note, scale_type)) => (note, scale_type.trim()),
+                None => {
+                    println!(
+                        "❌ Invalid input. Please enter a valid scale (e.g. C major, A minor, F# major)."
+                    );
+                    continue;
+                }
+            };
+
+            let note = match note.parse::<NoteWithOctave>() {
+                Ok(note) => note,
+                Err(_) => {
+                    println!("❌ Invalid input. Please enter a valid note (e.g. C4, A#3, Bb2).");
+                    continue;
+                }
+            };
+
+            let scale_type = match scale_type.parse::<ScaleType>() {
+                Ok(scale_type) => scale_type,
+                Err(_) => {
+                    println!(
+                        "❌ Invalid input. Please enter a valid scale type (e.g. major, minor)."
+                    );
+                    continue;
+                }
+            };
+
+            let scale = Scale::new(note, scale_type);
+
+            match scale.play_default() {
+                Ok(_) => println!("🎶 Playing {}...", scale),
+                Err(e) => println!("❌ Error playing {}: {}", scale, e),
+            }
         }
     }
 }
